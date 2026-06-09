@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kitchen Table Chess</title>
+  <style>
+    :root {
+      --ink: #292421;
+      --paper: #fff8ee;
+      --paper-deep: #f1dfc5;
+      --coffee: #7a4b31;
+      --coffee-dark: #49301f;
+      --mint: #87c9a6;
+      --gold: #e7b955;
+      --danger: #ca5d51;
+      --shadow: 0 22px 60px rgba(35, 24, 18, .22);
+      font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(231, 185, 85, .34), transparent 32rem),
+        radial-gradient(circle at bottom right, rgba(135, 201, 166, .28), transparent 28rem),
+        linear-gradient(135deg, #f7ead7 0%, #dac1a0 100%);
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 28px 0 38px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.25rem, 5vw, 4.7rem);
+      line-height: .92;
+      letter-spacing: -.06em;
+      color: var(--coffee-dark);
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      max-width: 56ch;
+      font-size: 1.05rem;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(320px, 690px) minmax(280px, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .board-wrap, .panel {
+      background: rgba(255, 248, 238, .78);
+      border: 1px solid rgba(73, 48, 31, .18);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .board-wrap { padding: clamp(12px, 2vw, 22px); }
+
+    .board-frame {
+      position: relative;
+      padding: 24px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #895c3a, #3d281b);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.14), inset 0 0 24px rgba(0,0,0,.22);
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 3px solid rgba(37, 24, 15, .7);
+      user-select: none;
+    }
+
+    .square {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      border: 0;
+      cursor: pointer;
+      font: inherit;
+      transition: filter .15s ease, transform .15s ease;
+    }
+
+    .square.light { background: #f0d9b5; }
+    .square.dark { background: #b48762; }
+    .square:hover { filter: brightness(1.06); }
+    .square.selected { outline: 4px solid rgba(231, 185, 85, .95); outline-offset: -4px; }
+    .square.last::before {
+      content: "";
+      position: absolute;
+      inset: 7px;
+      border-radius: 11px;
+      background: rgba(231, 185, 85, .27);
+    }
+    .square.in-check::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border-radius: 999px;
+      background: rgba(202, 93, 81, .38);
+      box-shadow: 0 0 0 3px rgba(202, 93, 81, .48) inset;
+    }
+
+    .hint::before, .capture-hint::before {
+      content: "";
+      position: absolute;
+      z-index: 1;
+      border-radius: 999px;
+    }
+    .hint::before {
+      width: 28%;
+      height: 28%;
+      background: rgba(41, 36, 33, .28);
+    }
+    .capture-hint::before {
+      inset: 10%;
+      border: 5px solid rgba(41, 36, 33, .32);
+    }
+
+    .piece {
+      position: relative;
+      z-index: 2;
+      width: 78%;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50% 50% 44% 44%;
+      font-size: clamp(2rem, 7vw, 4.7rem);
+      line-height: 1;
+      transform: translateY(-1px);
+      text-shadow: 0 2px 0 rgba(255,255,255,.22);
+      transition: transform .12s ease;
+    }
+    .piece.white {
+      color: #fdf8ef;
+      background: radial-gradient(circle at 36% 24%, #ffffff 0 16%, #eadbc7 45%, #b89372 100%);
+      box-shadow: inset -8px -12px 20px rgba(97,66,40,.28), 0 9px 14px rgba(40,23,12,.24);
+    }
+    .piece.black {
+      color: #231916;
+      background: radial-gradient(circle at 34% 23%, #726055 0 12%, #3f302b 47%, #171211 100%);
+      box-shadow: inset -8px -12px 18px rgba(0,0,0,.42), 0 9px 14px rgba(40,23,12,.28);
+      text-shadow: 0 1px 0 rgba(255,255,255,.09);
+    }
+    .square:hover .piece { transform: translateY(-4px); }
+
+    .files, .ranks {
+      position: absolute;
+      color: rgba(255, 248, 238, .8);
+      font-weight: 700;
+      letter-spacing: .06em;
+      pointer-events: none;
+    }
+    .files {
+      left: 24px;
+      right: 24px;
+      bottom: 4px;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      text-align: center;
+    }
+    .ranks {
+      top: 24px;
+      bottom: 24px;
+      left: 8px;
+      display: grid;
+      grid-template-rows: repeat(8, 1fr);
+      align-items: center;
+    }
+
+    .panel { padding: 20px; }
+    .status-card {
+      background: #fffaf2;
+      border: 1px solid rgba(73, 48, 31, .14);
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .turn {
+      display: inline-flex;
+      gap: 9px;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--coffee-dark);
+      color: white;
+      font-weight: 700;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
+    .message { margin: 14px 0 0; font-size: 1.08rem; min-height: 2.8em; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+    button.action {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: var(--coffee);
+      color: white;
+      cursor: pointer;
+      font-weight: 700;
+      box-shadow: 0 7px 16px rgba(73, 48, 31, .18);
+    }
+    button.action.secondary { background: #f4e3cb; color: var(--coffee-dark); }
+    button.action:hover { transform: translateY(-1px); }
+
+    .captured {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .cap-box {
+      min-height: 54px;
+      border-radius: 16px;
+      background: rgba(241, 223, 197, .75);
+      padding: 10px;
+      font-size: 1.45rem;
+    }
+    .cap-box b { display: block; font-size: .82rem; margin-bottom: 6px; color: var(--coffee-dark); }
+
+    h2 { margin: 18px 0 8px; color: var(--coffee-dark); }
+    details {
+      background: #fffaf2;
+      border: 1px solid rgba(73, 48, 31, .14);
+      border-radius: 18px;
+      padding: 12px 14px;
+      margin: 10px 0;
+    }
+    summary { cursor: pointer; font-weight: 800; color: var(--coffee-dark); }
+    ul { padding-left: 22px; }
+    li { margin: 7px 0; }
+
+    .promotion {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 20px;
+      background: rgba(35, 24, 18, .42);
+      z-index: 10;
+    }
+    .promotion.show { display: grid; }
+    .promo-card {
+      width: min(420px, 100%);
+      border-radius: 24px;
+      background: var(--paper);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .promo-pieces { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
+    .promo-pieces button {
+      border: 0;
+      border-radius: 18px;
+      background: var(--paper-deep);
+      padding: 12px 4px;
+      cursor: pointer;
+      font-size: 2.5rem;
+    }
+    .promo-pieces button:hover { background: var(--gold); }
+
+    @media (max-width: 900px) {
+      header, .shell { display: block; }
+      .panel { margin-top: 18px; }
+      .board-frame { padding: 18px; }
+      .files { left: 18px; right: 18px; }
+      .ranks { top: 18px; bottom: 18px; left: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <h1>Kitchen Table Chess</h1>
+        <p class="subtitle">A tidy little browser chessboard: tap a piece, follow the dots, and play a normal game without needing an account, timer, or lecture.</p>
+      </div>
+    </header>
+
+    <section class="shell" aria-label="Chess game">
+      <div class="board-wrap">
+        <div class="board-frame">
+          <div class="board" id="board" aria-label="Chess board"></div>
+          <div class="files" aria-hidden="true"><span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span></div>
+          <div class="ranks" aria-hidden="true"><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+        </div>
+      </div>
+
+      <aside class="panel">
+        <div class="status-card">
+          <div class="turn"><span class="dot" id="turnDot"></span><span id="turnLabel">White to move</span></div>
+          <p class="message" id="message">White starts. Pick a piece and the legal squares will light up.</p>
+          <div class="buttons">
+            <button class="action" id="newGame">New game</button>
+            <button class="action secondary" id="flipBoard">Flip board</button>
+          </div>
+          <div class="captured">
+            <div class="cap-box"><b>White has taken</b><span id="takenByWhite">—</span></div>
+            <div class="cap-box"><b>Black has taken</b><span id="takenByBlack">—</span></div>
+          </div>
+        </div>
+
+        <h2>House rules on this board</h2>
+        <details open>
+          <summary>Moving pieces</summary>
+          <ul>
+            <li>Pawns move forward one square, or two from their starting row if both squares are clear. They capture diagonally.</li>
+            <li>Knights jump in an L shape. Bishops use diagonals, rooks use files and ranks, and queens can do either.</li>
+            <li>Kings move one square. Castling is allowed when neither piece has moved, the path is clear, and the king does not pass through check.</li>
+            <li>The board blocks moves that leave your own king in check.</li>
+          </ul>
+        </details>
+        <details>
+          <summary>Promotion and en passant</summary>
+          <ul>
+            <li>When a pawn reaches the far side, choose a queen, rook, bishop, or knight.</li>
+            <li>En passant is available only on the very next move after an opposing pawn rushes two squares beside your pawn.</li>
+          </ul>
+        </details>
+        <details>
+          <summary>Winning</summary>
+          <ul>
+            <li>Check, checkmate, and stalemate are detected. If nobody has a legal move, the message will tell you what happened.</li>
+          </ul>
+        </details>
+      </aside>
+    </section>
+  </main>
+
+  <div class="promotion" id="promotion" role="dialog" aria-modal="true" aria-labelledby="promoTitle">
+    <div class="promo-card">
+      <h2 id="promoTitle">Promote your pawn</h2>
+      <p>Pick the piece you want. Queen is common, but the weird choices are here too.</p>
+      <div class="promo-pieces" id="promoPieces"></div>
+    </div>
+  </div>
+
+  <script>
+    const boardEl = document.getElementById('board');
+    const turnLabel = document.getElementById('turnLabel');
+    const turnDot = document.getElementById('turnDot');
+    const messageEl = document.getElementById('message');
+    const takenByWhite = document.getElementById('takenByWhite');
+    const takenByBlack = document.getElementById('takenByBlack');
+    const promotionEl = document.getElementById('promotion');
+    const promoPieces = document.getElementById('promoPieces');
+
+    const glyph = {
+      white: { king: '♔', queen: '♕', rook: '♖', bishop: '♗', knight: '♘', pawn: '♙' },
+      black: { king: '♚', queen: '♛', rook: '♜', bishop: '♝', knight: '♞', pawn: '♟' }
+    };
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const backRank = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'];
+
+    let board;
+    let turn;
+    let selected = null;
+    let legalMoves = [];
+    let lastMove = null;
+    let flipped = false;
+    let captured = { white: [], black: [] };
+    let awaitingPromotion = null;
+    let gameOver = false;
+
+    function newPiece(type, color) {
+      return { type, color, moved: false };
+    }
+
+    function startGame() {
+      board = Array.from({ length: 8 }, () => Array(8).fill(null));
+      for (let c = 0; c < 8; c++) {
+        board[0][c] = newPiece(backRank[c], 'black');
+        board[1][c] = newPiece('pawn', 'black');
+        board[6][c] = newPiece('pawn', 'white');
+        board[7][c] = newPiece(backRank[c], 'white');
+      }
+      turn = 'white';
+      selected = null;
+      legalMoves = [];
+      lastMove = null;
+      captured = { white: [], black: [] };
+      awaitingPromotion = null;
+      gameOver = false;
+      promotionEl.classList.remove('show');
+      setMessage('White starts. Pick a piece and the legal squares will light up.');
+      render();
+    }
+
+    function render() {
+      boardEl.innerHTML = '';
+      const rows = flipped ? [...Array(8).keys()].reverse() : [...Array(8).keys()];
+      const cols = flipped ? [...Array(8).keys()].reverse() : [...Array(8).keys()];
+      const checkSquare = findKing(turn);
+      const turnInCheck = isKingInCheck(turn, board);
+
+      rows.forEach(r => {
+        cols.forEach(c => {
+          const square = document.createElement('button');
+          square.className = `square ${(r + c) % 2 ? 'dark' : 'light'}`;
+          square.type = 'button';
+          square.dataset.row = r;
+          square.dataset.col = c;
+          square.setAttribute('aria-label', `${files[c]}${8 - r}`);
+
+          if (selected && selected.r === r && selected.c === c) square.classList.add('selected');
+          if (lastMove && ((lastMove.from.r === r && lastMove.from.c === c) || (lastMove.to.r === r && lastMove.to.c === c))) square.classList.add('last');
+          if (turnInCheck && checkSquare && checkSquare.r === r && checkSquare.c === c) square.classList.add('in-check');
+
+          const moveHint = legalMoves.find(move => move.r === r && move.c === c);
+          if (moveHint) square.classList.add(board[r][c] || moveHint.enPassant ? 'capture-hint' : 'hint');
+
+          const piece = board[r][c];
+          if (piece) {
+            const pieceEl = document.createElement('span');
+            pieceEl.className = `piece ${piece.color}`;
+            pieceEl.textContent = glyph[piece.color][piece.type];
+            square.appendChild(pieceEl);
+          }
+
+          square.addEventListener('click', () => handleSquare(r, c));
+          boardEl.appendChild(square);
+        });
+      });
+
+      turnLabel.textContent = gameOver ? 'Game over' : `${capitalize(turn)} to move`;
+      turnDot.style.color = turn === 'white' ? '#fff8ee' : '#211714';
+      takenByWhite.textContent = captured.white.length ? captured.white.map(p => glyph.black[p]).join(' ') : '—';
+      takenByBlack.textContent = captured.black.length ? captured.black.map(p => glyph.white[p]).join(' ') : '—';
+    }
+
+    function handleSquare(r, c) {
+      if (gameOver || awaitingPromotion) return;
+      const piece = board[r][c];
+
+      if (selected) {
+        const move = legalMoves.find(item => item.r === r && item.c === c);
+        if (move) {
+          makeMove(selected, move);
+          return;
+        }
+      }
+
+      if (piece && piece.color === turn) {
+        selected = { r, c };
+        legalMoves = getLegalMoves(r, c, board);
+        setMessage(`${capitalize(piece.type)} on ${files[c]}${8 - r}: ${legalMoves.length ? 'choose one of the marked squares.' : 'no legal move from there.'}`);
+      } else {
+        selected = null;
+        legalMoves = [];
+      }
+      render();
+    }
+
+    function makeMove(from, move) {
+      const piece = board[from.r][from.c];
+      const capturedPiece = move.enPassant ? board[from.r][move.c] : board[move.r][move.c];
+      if (capturedPiece) captured[piece.color].push(capturedPiece.type);
+
+      if (move.enPassant) board[from.r][move.c] = null;
+      board[move.r][move.c] = piece;
+      board[from.r][from.c] = null;
+
+      if (move.castle) {
+        const rookFrom = move.c > from.c ? 7 : 0;
+        const rookTo = move.c > from.c ? 5 : 3;
+        board[from.r][rookTo] = board[from.r][rookFrom];
+        board[from.r][rookFrom] = null;
+        board[from.r][rookTo].moved = true;
+      }
+
+      piece.moved = true;
+      lastMove = {
+        from: { ...from },
+        to: { r: move.r, c: move.c },
+        piece: piece.type,
+        color: piece.color,
+        doublePawn: piece.type === 'pawn' && Math.abs(move.r - from.r) === 2
+      };
+      selected = null;
+      legalMoves = [];
+
+      if (piece.type === 'pawn' && (move.r === 0 || move.r === 7)) {
+        awaitingPromotion = { r: move.r, c: move.c, color: piece.color };
+        showPromotion(piece.color);
+        render();
+        return;
+      }
+
+      finishTurn();
+    }
+
+    function finishTurn() {
+      turn = opposite(turn);
+      const legalCount = countLegalMoves(turn);
+      const inCheck = isKingInCheck(turn, board);
+      if (legalCount === 0) {
+        gameOver = true;
+        setMessage(inCheck ? `${capitalize(opposite(turn))} wins by checkmate.` : 'Stalemate. Nobody wins this one.');
+      } else {
+        setMessage(inCheck ? `${capitalize(turn)} is in check.` : `${capitalize(turn)} to move.`);
+      }
+      render();
+    }
+
+    function showPromotion(color) {
+      promoPieces.innerHTML = '';
+      ['queen', 'rook', 'bishop', 'knight'].forEach(type => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = glyph[color][type];
+        btn.setAttribute('aria-label', `Promote to ${type}`);
+        btn.addEventListener('click', () => {
+          board[awaitingPromotion.r][awaitingPromotion.c].type = type;
+          awaitingPromotion = null;
+          promotionEl.classList.remove('show');
+          finishTurn();
+        });
+        promoPieces.appendChild(btn);
+      });
+      promotionEl.classList.add('show');
+    }
+
+    function getLegalMoves(r, c, state) {
+      const piece = state[r][c];
+      if (!piece) return [];
+      return getPseudoMoves(r, c, state).filter(move => {
+        const copy = cloneBoard(state);
+        applyMoveToBoard(copy, { r, c }, move);
+        return !isKingInCheck(piece.color, copy);
+      });
+    }
+
+    function getPseudoMoves(r, c, state, attacksOnly = false) {
+      const piece = state[r][c];
+      if (!piece) return [];
+      const moves = [];
+      const add = (rr, cc, extra = {}) => {
+        if (inside(rr, cc)) moves.push({ r: rr, c: cc, ...extra });
+      };
+
+      if (piece.type === 'pawn') {
+        const dir = piece.color === 'white' ? -1 : 1;
+        const start = piece.color === 'white' ? 6 : 1;
+        [-1, 1].forEach(dc => {
+          const rr = r + dir;
+          const cc = c + dc;
+          if (!inside(rr, cc)) return;
+          if (attacksOnly || (state[rr][cc] && state[rr][cc].color !== piece.color)) add(rr, cc);
+        });
+        if (!attacksOnly) {
+          if (inside(r + dir, c) && !state[r + dir][c]) add(r + dir, c);
+          if (r === start && !state[r + dir][c] && !state[r + dir * 2][c]) add(r + dir * 2, c);
+          if (lastMove && lastMove.doublePawn && lastMove.color !== piece.color && lastMove.to.r === r && Math.abs(lastMove.to.c - c) === 1) {
+            add(r + dir, lastMove.to.c, { enPassant: true });
+          }
+        }
+      }
+
+      if (piece.type === 'knight') {
+        [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([dr, dc]) => {
+          const rr = r + dr;
+          const cc = c + dc;
+          if (inside(rr, cc) && (!state[rr][cc] || state[rr][cc].color !== piece.color)) add(rr, cc);
+        });
+      }
+
+      if (['bishop', 'rook', 'queen'].includes(piece.type)) {
+        const dirs = [];
+        if (piece.type !== 'rook') dirs.push([-1,-1],[-1,1],[1,-1],[1,1]);
+        if (piece.type !== 'bishop') dirs.push([-1,0],[1,0],[0,-1],[0,1]);
+        dirs.forEach(([dr, dc]) => {
+          let rr = r + dr;
+          let cc = c + dc;
+          while (inside(rr, cc)) {
+            if (!state[rr][cc]) add(rr, cc);
+            else {
+              if (state[rr][cc].color !== piece.color) add(rr, cc);
+              break;
+            }
+            rr += dr;
+            cc += dc;
+          }
+        });
+      }
+
+      if (piece.type === 'king') {
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const rr = r + dr;
+            const cc = c + dc;
+            if (inside(rr, cc) && (!state[rr][cc] || state[rr][cc].color !== piece.color)) add(rr, cc);
+          }
+        }
+        if (!attacksOnly && !piece.moved && !isKingInCheck(piece.color, state)) {
+          addCastleMove(r, c, 7, 6, 5, state, moves, piece.color);
+          addCastleMove(r, c, 0, 2, 3, state, moves, piece.color);
+        }
+      }
+      return moves;
+    }
+
+    function addCastleMove(r, c, rookCol, kingTo, through, state, moves, color) {
+      const rook = state[r][rookCol];
+      if (!rook || rook.type !== 'rook' || rook.color !== color || rook.moved) return;
+      const step = rookCol > c ? 1 : -1;
+      for (let cc = c + step; cc !== rookCol; cc += step) {
+        if (state[r][cc]) return;
+      }
+      const throughBoard = cloneBoard(state);
+      applyMoveToBoard(throughBoard, { r, c }, { r, c: through });
+      const finalBoard = cloneBoard(state);
+      applyMoveToBoard(finalBoard, { r, c }, { r, c: kingTo });
+      if (!isKingInCheck(color, throughBoard) && !isKingInCheck(color, finalBoard)) moves.push({ r, c: kingTo, castle: true });
+    }
+
+    function applyMoveToBoard(state, from, move) {
+      const piece = state[from.r][from.c];
+      if (move.enPassant) state[from.r][move.c] = null;
+      state[move.r][move.c] = piece ? { ...piece, moved: true } : null;
+      state[from.r][from.c] = null;
+      if (move.castle) {
+        const rookFrom = move.c > from.c ? 7 : 0;
+        const rookTo = move.c > from.c ? 5 : 3;
+        state[from.r][rookTo] = state[from.r][rookFrom] ? { ...state[from.r][rookFrom], moved: true } : null;
+        state[from.r][rookFrom] = null;
+      }
+    }
+
+    function isKingInCheck(color, state) {
+      const king = findKing(color, state);
+      if (!king) return true;
+      return isSquareAttacked(king.r, king.c, opposite(color), state);
+    }
+
+    function isSquareAttacked(r, c, byColor, state) {
+      for (let rr = 0; rr < 8; rr++) {
+        for (let cc = 0; cc < 8; cc++) {
+          const piece = state[rr][cc];
+          if (piece && piece.color === byColor) {
+            if (getPseudoMoves(rr, cc, state, true).some(move => move.r === r && move.c === c)) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function findKing(color, state = board) {
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const piece = state[r][c];
+          if (piece && piece.type === 'king' && piece.color === color) return { r, c };
+        }
+      }
+      return null;
+    }
+
+    function countLegalMoves(color) {
+      let total = 0;
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const piece = board[r][c];
+          if (piece && piece.color === color) total += getLegalMoves(r, c, board).length;
+        }
+      }
+      return total;
+    }
+
+    function cloneBoard(state) {
+      return state.map(row => row.map(piece => piece ? { ...piece } : null));
+    }
+
+    function inside(r, c) {
+      return r >= 0 && r < 8 && c >= 0 && c < 8;
+    }
+
+    function opposite(color) {
+      return color === 'white' ? 'black' : 'white';
+    }
+
+    function capitalize(word) {
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }
+
+    function setMessage(text) {
+      messageEl.textContent = text;
+    }
+
+    document.getElementById('newGame').addEventListener('click', startGame);
+    document.getElementById('flipBoard').addEventListener('click', () => {
+      flipped = !flipped;
+      render();
+    });
+
+    startGame();
+  </script>
+</body>
+</html>
