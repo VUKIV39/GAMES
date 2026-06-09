@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiny Bean Clicker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="hero-card" aria-labelledby="game-title">
+        <p class="eyebrow">Tiny Bean Studios presents</p>
+        <h1 id="game-title">Tiny Bean Clicker</h1>
+        <p class="subtitle">Click the bean, buy a few silly upgrades, then save proof of your mighty score.</p>
+
+        <div class="score-board" aria-live="polite">
+          <span class="score-label">Beans</span>
+          <strong id="score">0</strong>
+          <span id="beans-per-click">1 bean per click</span>
+        </div>
+
+        <button id="click-button" class="click-button" type="button" aria-label="Click for beans">
+          <span class="bean-face" aria-hidden="true">🫘</span>
+          <span>Click the Bean</span>
+        </button>
+      </section>
+
+      <section class="panel" aria-labelledby="upgrades-title">
+        <h2 id="upgrades-title">Some upgrades</h2>
+        <div id="upgrades" class="upgrades"></div>
+      </section>
+
+      <section class="panel screenshot-panel" aria-labelledby="screenshot-title">
+        <h2 id="screenshot-title">Funny score screenshot</h2>
+        <p>Make a silly image of your score, preview it here, and download it.</p>
+        <button id="screenshot-button" class="secondary-button" type="button">Take funny screenshot</button>
+        <a id="download-link" class="secondary-button download-link disabled" download="tiny-bean-score.png" aria-disabled="true">Download screenshot</a>
+        <canvas id="score-canvas" width="720" height="420" aria-label="Generated funny screenshot preview"></canvas>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
